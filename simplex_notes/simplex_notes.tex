@@ -1,0 +1,79 @@
+\documentclass[12pt]{article}
+\usepackage{xcolor}
+\definecolor{myblue}{HTML}{0009FF}
+\definecolor{myorange}{HTML}{FFB400}
+\definecolor{mygreen}{HTML}{00FF76}
+\definecolor{mypink}{HTML}{FF0089}
+\definecolor{mypurple}{HTML}{7600FF}
+\newcommand{\mysfcolor}[2]{\textcolor{#1}{\textsf{#2}}}
+\usepackage[fleqn]{amsmath}
+\usepackage{enumitem}
+\usepackage{amssymb}
+\usepackage{array}
+\usepackage[a4paper, left=1cm, right=1cm, top=1cm, bottom=1cm]{geometry}
+\pagestyle{empty}
+\setlist[itemize,1]{leftmargin=*}
+
+\begin{document} 
+\textbf{Steps in the coding implementation of Perlin Noise:} 
+\begin{enumerate}
+	\item Initialize a temporary table. Usually with entries 0 to 255. Shuffle these entries. 
+	\item Initialize a permutationTable. This table contains double the entries of the temporary table. This is because when you perform table look-ups to get the values to inerpolate between you do this in the following manner for 3D: permutationTable[x + permutationTable[y]] + z; meaning that y could possibly resolve to maximum number 255 and if x is also 255 then you need to lookup a number higher than 255. Even for dimensions higher than 3D however, your permutationTable stays at size double the temporary table. 
+	\item Generating the noise. Now that we have permutationTable set up, we can pass in a point (x,y,z) to get noise from it. 
+	\item All values of x,y,z we ensure that they are between 0 to 255 in value (essentially by converting the doubles to integers with the floor function and then performing x % 255 but for each x,y,z). 
+	\item Calculate the distance of each component to the floor of the component
+	\item compute a fade curve for these distance values
+	\item obtain the values at the 8 closest points in the hypercube of the 3D shape by doing permutationTable[X + permutationTable[Y]] + Z; for each permutation of (X,Y,Z) and (X + 1, Y + 1, Z + 1);
+	\item Linearly interpolate between first the sides of the cube, then the squares of the cube, then the entire cube. 
+	\item Return a normalized result.
+\end{enumerate}
+
+\textbf{Features of simplex noise:}
+\begin{enumerate}
+	\item Faster than Perlin noise. Perlin noise has $O(n \cdot 2^n)$ time complexity with $n$ being the dimension. Simplex noise has $O(n^2)$ time complexity. Simplex noise is much faster than Perlin noise when you generate noise on higher dimensions. 
+	\item Interpolation can only be performed in 1D so if you are performing Perlin noise generation you require $2^n -1 $ interpolations per pixel. Simplex noise requires $n + 1$ radial attenuations per pixel.
+\end{enumerate}
+
+\textbf{Challenges of simplex noise:}
+	\begin{enumerate}
+		\item The largest challenge associated with simplex noise is finding the closest grid points to each pixel. In Perlin noise since you are using a hypercube, you can simply round the pixel up and down to get the closest grid point. Obviously you cannot do this with simplex.
+		\item In 2D simplex noise, to find the closest point you apply a skew function to the surface to turn the equilateral tilings into right triangles, then find your closest points and unskew. 
+		\item Non-euclidean space has curvature so you cannot find a global skew and unskew transformation. You can perhaps use local skewing (with the Jacobian) or a non-linear global skew function. 
+	\end{enumerate}
+
+    \textbf{The Fibonacci Grid on a Sphere} 
+    \begin{enumerate}
+        \item You want a lattice (way of arranging points) on the sphere such that these points cover approximately equal area. On a sphere this is traditionally done with latitude-longitude points. 
+        \item However, latitude-longitude leads to uneven spacing between points (an anisotropic distribution). The Fibonacci lattice can cover approximately equal areas, it has a more uniform distribution over the sphere.
+        \item It is impossible to arrange more than 20 points on the sphere with even coverage. (This shape is the dodecahedron).
+    \end{enumerate}
+
+    \textbf{Constructing the Fibonacci Lattice}
+    \begin{enumerate}
+        \item Points are arranged along a tightly wound generative spiral with each point fitted into the largest gap between previous points.
+        \item The angle between consecutive points along the spiral is based on the golden ratio $\phi$. The angle is either $360 \phi^{-2}$ or $360 \phi^{-1}$. Both produce the same points.
+        \item Golden ratio is $\phi = 1 + \phi^{-1} = (1 + \sqrt{5}/2) \cong 1.618$ or the Fibonacci ratio can serve as a rational approximate. $\phi$ is the most irrational number leading to optimum packing efficiency. Periodicities and near periodicities are avoided, clumping of lattice points never occurs.
+        \item Paper gives pseudocode to generate any odd number of points along a sphere. Returns the coordinates in angle representation. 
+    \end{enumerate}
+    \textbf{Delauney Triangulation}
+    \begin{enumerate}
+        \item Let $S$ be a set of points in $n$-dimensional Euclidean space $E^n$. Let $\Omega(S)$ represent the convex hull.
+        \item Triangulation $T$ can be defined as the decomposition of $\Omega(S)$ into the set of simplices $\{s_i\}_{i=1}^k$ such that: 
+            \begin{enumerate}
+                \item A point $p \in E^n$ is a vertex of a simplex iff $p \in S$
+                \item For any pair of simplices $s_i, s_j \in T$, $s_i \cap s_j = \emptyset$
+                \item The union of all simplices completely covers the domain bounded by $\Omega(S)$
+            \end{enumerate}
+        \item We say a triangulation $T_D$ of a set $S \in E^n$ is a Delauney triangulation iff the circumsphere of every simplex $s \in T_D$ contains no other point in $S$ but the vertices that form $S$. 
+        \item If we're talking spherical Delauney Triangulations then the above criterion needs to be relaxed into: Let $S \in U$ be a set of points $\{p_i\}_{i=1}^N$ on the unit sphere then for $N \geq 3$ a Delauney Triangulation $T_D$ is defined if the empty circumsphere criterion is satisfied for all spherical triangles covering the convex hull $\Omega(S)$. $U \subset \mathbb{R}^3$ is all the points on the unit sphere
+    \end{enumerate}
+    \textbf{TODO}
+    \begin{enumerate}
+        \item Assuming we use the Fibonacci grid method to generate evenly spaced points and then take the convex hull, how do we know these faces are simplices? Is there some sort of isomorphic relationship between simplices and convex hull faces?
+        \item Each point on the Fibonacci grid should have some sort of radial attenuation function that combines to create the noise.
+        \item How do you determine which simplex a random point on your grid falls into?
+        \item Assume now that points will be represented with the spherical coordinates $(r, \phi, \theta)$. We only have to store a permutation table with $\phi$ and $\theta$ in the range of 0-360 degrees.
+    \end{enumerate}
+\end{document}
+
+
